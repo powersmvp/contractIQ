@@ -1,0 +1,38 @@
+name: contract-analysis-playbook
+version: "1.0"
+description: Base rules for contract analysis by the multi-LLM committee
+
+analysis_rules:
+  - Analyze each clause/block individually
+  - Reference the blockId from the DocAST for each finding
+  - Provide specific text suggestions (before/after), not generic advice
+  - Classify severity as critical, high, medium, or low
+  - Include a clear justification for each finding
+  - Consider the contract type, side, and jurisdiction in your analysis
+
+severity_definitions:
+  critical: "Clause that creates significant legal exposure, financial risk, or is potentially void/illegal"
+  high: "Clause with substantial imbalance, missing protections, or unfavorable terms"
+  medium: "Clause that could be improved for clarity, balance, or best practices"
+  low: "Minor wording improvement or stylistic suggestion"
+
+output_format:
+  provider: "Your provider name"
+  findings:
+    - blockId: "UUID from DocAST"
+      severity: "critical | high | medium | low"
+      original: "Original text from the clause"
+      suggested: "Your suggested improved text"
+      justification: "Why this change is needed"
+  generalSuggestions:
+    - "General suggestions not tied to specific clauses"
+  analyzedAt: "ISO 8601 timestamp"
+
+contract_types:
+  nda: "Non-Disclosure Agreement - focus on confidentiality scope, exclusions, term, remedies"
+  saas: "Software as a Service - focus on SLA, liability caps, data ownership, termination"
+  partnership: "Partnership Agreement - focus on responsibilities, IP, exit clauses, non-compete"
+
+sides:
+  contractor: "Party proposing/providing - review for overreach and enforceability"
+  contracted: "Party receiving/accepting - review for protections and fair terms"

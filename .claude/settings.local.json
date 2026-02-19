@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:m3.material.io)",
+      "WebSearch",
+      "WebFetch(domain:medium.com)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx vitest:*)",
+      "Bash(curl:*)",
+      "Bash(npx next build)",
+      "Bash(python3:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx drizzle-kit push:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres.wgoewfdefcmrxbhkygyu:Rdo141479@@@@aws-0-sa-east-1.pooler.supabase.com:5432/postgres\" npx drizzle-kit push:*)",
+      "Bash(nslookup:*)",
+      "Bash(node -e:*)",
+      "Bash(npx drizzle-kit generate:*)",
+      "Bash(DOTENV_CONFIG_PATH=.env.local node:*)",
+      "Bash(gh auth:*)",
+      "Bash(git ls-remote:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
