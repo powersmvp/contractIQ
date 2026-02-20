@@ -31,7 +31,8 @@ const TABLE = 'provider_config';
 
 export async function loadStoredConfig(): Promise<StoredConfig> {
   try {
-    const { data, error } = await getClient()
+    const client = getClient();
+    const { data, error } = await client
       .from(TABLE)
       .select('*')
       .eq('tenant_id', TENANT_ID);
@@ -49,8 +50,8 @@ export async function loadStoredConfig(): Promise<StoredConfig> {
       }
     }
     return config;
-  } catch {
-    logger.warn('Failed to read provider config, starting fresh');
+  } catch (err) {
+    logger.warn('Failed to read provider config, starting fresh', { error: err instanceof Error ? err.message : String(err) });
     return {};
   }
 }
@@ -95,15 +96,19 @@ export async function getProviderModel(provider: string): Promise<string | undef
   const envKey = PROVIDER_TO_ENV[provider];
   if (!envKey) return undefined;
 
-  const { data, error } = await getClient()
-    .from(TABLE)
-    .select('selected_model')
-    .eq('tenant_id', TENANT_ID)
-    .eq('provider_name', provider)
-    .maybeSingle();
+  try {
+    const { data, error } = await getClient()
+      .from(TABLE)
+      .select('selected_model')
+      .eq('tenant_id', TENANT_ID)
+      .eq('provider_name', provider)
+      .maybeSingle();
 
-  if (error || !data) return undefined;
-  return (data as Pick<DbProviderConfigRow, 'selected_model'>).selected_model ?? undefined;
+    if (error || !data) return undefined;
+    return (data as Pick<DbProviderConfigRow, 'selected_model'>).selected_model ?? undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function setProviderModel(provider: string, model: string): Promise<void> {

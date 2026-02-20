@@ -9,25 +9,34 @@ import { logger } from '@/lib/logger/logger';
 const TestResponseSchema = z.object({}).passthrough();
 
 export async function GET() {
-  await hydrateKeysToEnv();
-  resetConfigCache();
+  try {
+    try { await hydrateKeysToEnv(); } catch { /* Supabase may be unreachable on first call */ }
+    resetConfigCache();
 
-  const providers = await Promise.all(
-    PROVIDERS.map(async (name) => {
-      const { apiKey } = getProviderConfig(name);
-      const hasKey = typeof apiKey === 'string' && apiKey.length > 0;
-      return {
-        name,
-        status: hasKey ? 'active' : 'inactive',
-        configured: hasKey,
-        maskedKey: hasKey ? `${apiKey.slice(0, 4)}..${apiKey.slice(-4)}` : null,
-        selectedModel: await getSelectedModel(name),
-        availableModels: PROVIDER_MODELS[name],
-      };
-    }),
-  );
+    const providers = await Promise.all(
+      PROVIDERS.map(async (name) => {
+        const { apiKey } = getProviderConfig(name);
+        const hasKey = typeof apiKey === 'string' && apiKey.length > 0;
+        return {
+          name,
+          status: hasKey ? 'active' : 'inactive',
+          configured: hasKey,
+          maskedKey: hasKey ? `${apiKey.slice(0, 4)}..${apiKey.slice(-4)}` : null,
+          selectedModel: await getSelectedModel(name),
+          availableModels: PROVIDER_MODELS[name],
+        };
+      }),
+    );
 
-  return NextResponse.json({ data: { providers } });
+    return NextResponse.json({ data: { providers } });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('GET /api/config/providers failed', { error: message });
+    return NextResponse.json(
+      { error: { code: 'CONFIG_ERROR', message } },
+      { status: 500 },
+    );
+  }
 }
 
 const PutBodySchema = z.object({
