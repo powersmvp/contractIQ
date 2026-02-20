@@ -51,7 +51,7 @@ export async function runVerdict(jobId: string, selectedProviders?: ProviderName
     }
   }
 
-  const adapters = getAdapters(selectedProviders);
+  const adapters = await getAdapters(selectedProviders);
   const params = {
     contractType: meta.contractType,
     side: meta.side,

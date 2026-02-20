@@ -7,10 +7,10 @@ import { GeminiAdapter } from './gemini.adapter';
 import { MistralAdapter } from './mistral.adapter';
 import { LlamaAdapter } from './llama.adapter';
 
-function createAdapter(provider: ProviderName): LLMAdapter | null {
+async function createAdapter(provider: ProviderName): Promise<LLMAdapter | null> {
   const { apiKey, baseUrl } = getProviderConfig(provider);
   if (!apiKey) return null;
-  const model = getSelectedModel(provider);
+  const model = await getSelectedModel(provider);
 
   switch (provider) {
     case 'gpt': return new GptAdapter(apiKey, baseUrl, model);
@@ -21,16 +21,15 @@ function createAdapter(provider: ProviderName): LLMAdapter | null {
   }
 }
 
-export function getAdapters(selectedProviders?: ProviderName[]): LLMAdapter[] {
+export async function getAdapters(selectedProviders?: ProviderName[]): Promise<LLMAdapter[]> {
   let providers = getActiveProviders();
   if (selectedProviders && selectedProviders.length > 0) {
     providers = providers.filter((p) => selectedProviders.includes(p));
   }
-  return providers
-    .map(createAdapter)
-    .filter((a): a is LLMAdapter => a !== null);
+  const results = await Promise.all(providers.map(createAdapter));
+  return results.filter((a): a is LLMAdapter => a !== null);
 }
 
-export function getAdapter(provider: ProviderName): LLMAdapter | null {
+export async function getAdapter(provider: ProviderName): Promise<LLMAdapter | null> {
   return createAdapter(provider);
 }

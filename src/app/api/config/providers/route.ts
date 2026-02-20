@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { PROVIDERS, getProviderConfig, resetConfigCache } from '@/lib/config/env.config';
-import { setProviderKey, removeProviderKey, setProviderModel } from '@/lib/config/provider-keys';
+import { setProviderKey, removeProviderKey, setProviderModel, hydrateKeysToEnv } from '@/lib/config/provider-keys';
 import { getAdapter } from '@/lib/adapters';
 import { PROVIDER_MODELS, getSelectedModel } from '@/lib/config/provider-models';
 import { logger } from '@/lib/logger/logger';
@@ -9,18 +9,23 @@ import { logger } from '@/lib/logger/logger';
 const TestResponseSchema = z.object({}).passthrough();
 
 export async function GET() {
-  const providers = PROVIDERS.map((name) => {
-    const { apiKey } = getProviderConfig(name);
-    const hasKey = typeof apiKey === 'string' && apiKey.length > 0;
-    return {
-      name,
-      status: hasKey ? 'active' : 'inactive',
-      configured: hasKey,
-      maskedKey: hasKey ? `${apiKey.slice(0, 4)}..${apiKey.slice(-4)}` : null,
-      selectedModel: getSelectedModel(name),
-      availableModels: PROVIDER_MODELS[name],
-    };
-  });
+  await hydrateKeysToEnv();
+  resetConfigCache();
+
+  const providers = await Promise.all(
+    PROVIDERS.map(async (name) => {
+      const { apiKey } = getProviderConfig(name);
+      const hasKey = typeof apiKey === 'string' && apiKey.length > 0;
+      return {
+        name,
+        status: hasKey ? 'active' : 'inactive',
+        configured: hasKey,
+        maskedKey: hasKey ? `${apiKey.slice(0, 4)}..${apiKey.slice(-4)}` : null,
+        selectedModel: await getSelectedModel(name),
+        availableModels: PROVIDER_MODELS[name],
+      };
+    }),
+  );
 
   return NextResponse.json({ data: { providers } });
 }
@@ -52,14 +57,14 @@ export async function PUT(request: NextRequest) {
 
   const { provider, apiKey, validate } = parsed.data;
 
-  setProviderKey(provider, apiKey);
+  await setProviderKey(provider, apiKey);
   resetConfigCache();
 
   logger.info('Provider key saved', { provider });
 
   if (validate) {
     try {
-      const adapter = getAdapter(provider);
+      const adapter = await getAdapter(provider);
       if (!adapter) {
         return NextResponse.json(
           { error: { code: 'ADAPTER_ERROR', message: 'Falha ao criar adapter para o provider' } },
@@ -130,7 +135,7 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  setProviderModel(provider, model);
+  await setProviderModel(provider, model);
   resetConfigCache();
 
   logger.info('Provider model updated', { provider, model });
@@ -163,7 +168,7 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  removeProviderKey(parsed.data.provider);
+  await removeProviderKey(parsed.data.provider);
   resetConfigCache();
 
   logger.info('Provider key removed', { provider: parsed.data.provider });

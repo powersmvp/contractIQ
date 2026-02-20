@@ -7,6 +7,8 @@ import { consolidate } from './consolidate';
 import { renderDocx } from './render-docx';
 import { logger } from '@/lib/logger/logger';
 import { getLangfuse } from '@/lib/langfuse/langfuse-client';
+import { hydrateKeysToEnv } from '@/lib/config/provider-keys';
+import { resetConfigCache } from '@/lib/config/env.config';
 
 export async function runPipeline(jobId: string): Promise<void> {
   const start = Date.now();
@@ -20,6 +22,10 @@ export async function runPipeline(jobId: string): Promise<void> {
   const traceId = trace?.id;
 
   try {
+    // Hydrate provider keys from Supabase before pipeline runs
+    await hydrateKeysToEnv();
+    resetConfigCache();
+
     const meta = await getJob(jobId);
     if (!meta) throw new Error(`Job not found: ${jobId}`);
 

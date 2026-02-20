@@ -21,6 +21,16 @@ vi.mock('axios', async () => {
   };
 });
 
+vi.mock('@/lib/config/provider-keys', () => ({
+  getProviderModel: vi.fn().mockResolvedValue(undefined),
+  getProviderKeyEnvName: vi.fn(),
+  hydrateKeysToEnv: vi.fn().mockResolvedValue(undefined),
+  loadStoredConfig: vi.fn().mockResolvedValue({}),
+  setProviderKey: vi.fn().mockResolvedValue(undefined),
+  removeProviderKey: vi.fn().mockResolvedValue(undefined),
+  setProviderModel: vi.fn().mockResolvedValue(undefined),
+}));
+
 const TestSchema = z.object({
   result: z.string(),
   score: z.number(),
@@ -205,7 +215,7 @@ describe('getAdapters', () => {
   beforeEach(() => {
     resetConfigCache();
     process.env = { ...originalEnv };
-    // Remove any keys hydrated from provider-keys.json so tests start clean
+    // Remove any keys hydrated from provider config so tests start clean
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.GOOGLE_AI_API_KEY;
@@ -222,16 +232,16 @@ describe('getAdapters', () => {
     resetConfigCache();
   });
 
-  it('returns empty array when no keys configured', () => {
-    const adapters = getAdapters();
+  it('returns empty array when no keys configured', async () => {
+    const adapters = await getAdapters();
     expect(adapters).toHaveLength(0);
   });
 
-  it('returns adapters for configured providers', () => {
+  it('returns adapters for configured providers', async () => {
     process.env.OPENAI_API_KEY = 'sk-test';
     process.env.ANTHROPIC_API_KEY = 'sk-ant';
     process.env.GOOGLE_AI_API_KEY = 'gai';
-    const adapters = getAdapters();
+    const adapters = await getAdapters();
     expect(adapters).toHaveLength(3);
     expect(adapters.map((a) => a.name)).toEqual(['gpt', 'claude', 'gemini']);
   });

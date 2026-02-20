@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import axios from 'axios';
-import { getActiveProviders, getProviderConfig } from '@/lib/config/env.config';
+import { getActiveProviders, getProviderConfig, resetConfigCache } from '@/lib/config/env.config';
 import type { ProviderName } from '@/lib/config/env.config';
+import { hydrateKeysToEnv } from '@/lib/config/provider-keys';
 
 const SimpleSchema = z.object({
   status: z.string(),
@@ -98,6 +99,9 @@ async function testProvider(name: ProviderName) {
 }
 
 export async function GET() {
+  await hydrateKeysToEnv();
+  resetConfigCache();
+
   const active = getActiveProviders();
 
   if (active.length === 0) {

@@ -42,7 +42,7 @@ export async function runDebate(jobId: string, selectedProviders?: ProviderName[
     throw new Error(`Need at least 2 Round 1 outputs for debate, found ${allRound1.length}`);
   }
 
-  const adapters = getAdapters(selectedProviders);
+  const adapters = await getAdapters(selectedProviders);
   const params = {
     contractType: meta.contractType,
     side: meta.side,

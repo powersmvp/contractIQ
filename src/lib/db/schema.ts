@@ -100,3 +100,14 @@ export function dbRowToJobRow(raw: DbJobRow): JobRow {
 }
 
 export type NewJobRow = Partial<DbJobRow> & Pick<DbJobRow, 'tenant_id' | 'contract_type' | 'side' | 'jurisdiction'>;
+
+/** Snake_case shape for the provider_config table */
+export interface DbProviderConfigRow {
+  id: string;
+  tenant_id: string;
+  provider_name: string;
+  api_key: string;
+  selected_model: string | null;
+  created_at: string;
+  updated_at: string;
+}

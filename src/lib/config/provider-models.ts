@@ -38,6 +38,6 @@ export function getDefaultModel(provider: ProviderName): string {
   return PROVIDER_MODELS[provider].find((m) => m.isDefault)!.id;
 }
 
-export function getSelectedModel(provider: ProviderName): string {
-  return getProviderModel(provider) ?? getDefaultModel(provider);
+export async function getSelectedModel(provider: ProviderName): Promise<string> {
+  return (await getProviderModel(provider)) ?? getDefaultModel(provider);
 }

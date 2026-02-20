@@ -1,8 +1,4 @@
 import { z } from 'zod';
-import { hydrateKeysToEnv } from './provider-keys';
-
-// Hydrate stored keys into process.env before loading config
-try { hydrateKeysToEnv(); } catch { /* ignore on first import */ }
 
 const EnvSchema = z.object({
   // LLM Provider API Keys (all optional - at least 3 must be configured)

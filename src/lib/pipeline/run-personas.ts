@@ -22,7 +22,7 @@ export async function runPersonas(jobId: string, selectedProviders?: ProviderNam
 
   await updateJob(jobId, { currentStage: 'personas', progress: { completed: 0, total: 5 } });
 
-  const adapters = getAdapters(selectedProviders);
+  const adapters = await getAdapters(selectedProviders);
   const minProviders = selectedProviders ? 2 : 3;
   if (adapters.length < minProviders) {
     await updateJob(jobId, {

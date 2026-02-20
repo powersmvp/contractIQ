@@ -7,7 +7,7 @@ describe('env.config', () => {
   beforeEach(() => {
     resetConfigCache();
     process.env = { ...originalEnv };
-    // Remove any keys hydrated from provider-keys.json so tests start clean
+    // Remove any keys hydrated from provider config so tests start clean
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.GOOGLE_AI_API_KEY;

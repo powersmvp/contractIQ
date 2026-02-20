@@ -1,10 +1,8 @@
-import fs from 'fs';
-import path from 'path';
+import { getClient } from '@/lib/db/client';
 import { logger } from '@/lib/logger/logger';
+import type { DbProviderConfigRow } from '@/lib/db/schema';
 
-const KEYS_FILE = path.join(process.cwd(), 'data', 'provider-keys.json');
-
-/** New format: each entry can be a string (legacy) or an object with apiKey + model */
+/** Shape kept for backward-compat with callers */
 export interface ProviderEntry {
   apiKey: string;
   model?: string;
@@ -28,88 +26,99 @@ const PROVIDER_TO_ENV: Record<string, EnvKeyName> = {
   llama: 'LLAMA_API_KEY',
 };
 
-function ensureDataDir(): void {
-  const dir = path.dirname(KEYS_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
+const TENANT_ID = 'default';
+const TABLE = 'provider_config';
 
-/** Normalize a stored entry (string or object) to ProviderEntry */
-function normalizeEntry(entry: string | ProviderEntry): ProviderEntry {
-  if (typeof entry === 'string') return { apiKey: entry };
-  return entry;
-}
-
-export function loadStoredConfig(): StoredConfig {
+export async function loadStoredConfig(): Promise<StoredConfig> {
   try {
-    if (fs.existsSync(KEYS_FILE)) {
-      const raw = fs.readFileSync(KEYS_FILE, 'utf-8');
-      return JSON.parse(raw) as StoredConfig;
+    const { data, error } = await getClient()
+      .from(TABLE)
+      .select('*')
+      .eq('tenant_id', TENANT_ID);
+
+    if (error) {
+      logger.warn('Failed to load provider config from Supabase', { error: error.message });
+      return {};
     }
+
+    const config: StoredConfig = {};
+    for (const row of (data ?? []) as DbProviderConfigRow[]) {
+      const envKey = PROVIDER_TO_ENV[row.provider_name];
+      if (envKey) {
+        config[envKey] = { apiKey: row.api_key, model: row.selected_model ?? undefined };
+      }
+    }
+    return config;
   } catch {
-    logger.warn('Failed to read provider keys file, starting fresh');
+    logger.warn('Failed to read provider config, starting fresh');
+    return {};
   }
-  return {};
 }
 
-function saveStoredConfig(config: StoredConfig): void {
-  ensureDataDir();
-  fs.writeFileSync(KEYS_FILE, JSON.stringify(config, null, 2));
-}
-
-/** Get the API key for a provider (handles both legacy string and new object format) */
-function getEntryApiKey(entry: string | ProviderEntry | undefined): string | undefined {
-  if (!entry) return undefined;
-  if (typeof entry === 'string') return entry;
-  return entry.apiKey;
-}
-
-export function setProviderKey(provider: string, apiKey: string): void {
+export async function setProviderKey(provider: string, apiKey: string): Promise<void> {
   const envKey = PROVIDER_TO_ENV[provider];
   if (!envKey) return;
 
-  const config = loadStoredConfig();
-  const existing = config[envKey];
-  const entry = existing && typeof existing === 'object' ? { ...existing, apiKey } : { apiKey };
-  config[envKey] = entry;
-  saveStoredConfig(config);
+  const { error } = await getClient()
+    .from(TABLE)
+    .upsert(
+      { tenant_id: TENANT_ID, provider_name: provider, api_key: apiKey, updated_at: new Date().toISOString() },
+      { onConflict: 'tenant_id,provider_name' },
+    );
+
+  if (error) {
+    logger.error('Failed to save provider key', { provider, error: error.message });
+    throw new Error(`Failed to save provider key: ${error.message}`);
+  }
 
   process.env[envKey] = apiKey;
 }
 
-export function removeProviderKey(provider: string): void {
+export async function removeProviderKey(provider: string): Promise<void> {
   const envKey = PROVIDER_TO_ENV[provider];
   if (!envKey) return;
 
-  const config = loadStoredConfig();
-  delete config[envKey];
-  saveStoredConfig(config);
+  const { error } = await getClient()
+    .from(TABLE)
+    .delete()
+    .eq('tenant_id', TENANT_ID)
+    .eq('provider_name', provider);
+
+  if (error) {
+    logger.error('Failed to remove provider key', { provider, error: error.message });
+  }
 
   delete process.env[envKey];
 }
 
-export function getProviderModel(provider: string): string | undefined {
+export async function getProviderModel(provider: string): Promise<string | undefined> {
   const envKey = PROVIDER_TO_ENV[provider];
   if (!envKey) return undefined;
 
-  const config = loadStoredConfig();
-  const entry = config[envKey];
-  if (entry && typeof entry === 'object') return entry.model;
-  return undefined;
+  const { data, error } = await getClient()
+    .from(TABLE)
+    .select('selected_model')
+    .eq('tenant_id', TENANT_ID)
+    .eq('provider_name', provider)
+    .maybeSingle();
+
+  if (error || !data) return undefined;
+  return (data as Pick<DbProviderConfigRow, 'selected_model'>).selected_model ?? undefined;
 }
 
-export function setProviderModel(provider: string, model: string): void {
+export async function setProviderModel(provider: string, model: string): Promise<void> {
   const envKey = PROVIDER_TO_ENV[provider];
   if (!envKey) return;
 
-  const config = loadStoredConfig();
-  const existing = config[envKey];
-  const apiKey = getEntryApiKey(existing);
-  if (!apiKey) return; // can't set model without an API key
+  const { error } = await getClient()
+    .from(TABLE)
+    .update({ selected_model: model, updated_at: new Date().toISOString() })
+    .eq('tenant_id', TENANT_ID)
+    .eq('provider_name', provider);
 
-  config[envKey] = { apiKey, model };
-  saveStoredConfig(config);
+  if (error) {
+    logger.error('Failed to update provider model', { provider, error: error.message });
+  }
 }
 
 export function getProviderKeyEnvName(provider: string): EnvKeyName | undefined {
@@ -117,14 +126,14 @@ export function getProviderKeyEnvName(provider: string): EnvKeyName | undefined 
 }
 
 /**
- * Load stored keys into process.env on startup.
- * Handles both legacy (string) and new (object) format.
+ * Load stored keys from Supabase into process.env.
+ * Must be awaited before accessing provider config.
  */
-export function hydrateKeysToEnv(): void {
-  const config = loadStoredConfig();
+export async function hydrateKeysToEnv(): Promise<void> {
+  const config = await loadStoredConfig();
   let count = 0;
   for (const [envKey, entry] of Object.entries(config)) {
-    const apiKey = getEntryApiKey(entry as string | ProviderEntry);
+    const apiKey = typeof entry === 'string' ? entry : entry?.apiKey;
     if (apiKey && !process.env[envKey]) {
       process.env[envKey] = apiKey;
       count++;
