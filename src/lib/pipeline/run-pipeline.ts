@@ -6,10 +6,18 @@ import { runVerdict } from './run-verdict';
 import { consolidate } from './consolidate';
 import { renderDocx } from './render-docx';
 import { logger } from '@/lib/logger/logger';
+import { getLangfuse } from '@/lib/langfuse/langfuse-client';
 
 export async function runPipeline(jobId: string): Promise<void> {
   const start = Date.now();
   logger.info('Pipeline started', { jobId });
+
+  const langfuse = getLangfuse();
+  const trace = langfuse?.trace({
+    name: 'contract-analysis',
+    metadata: { jobId },
+  });
+  const traceId = trace?.id;
 
   try {
     const meta = await getJob(jobId);
@@ -20,21 +28,23 @@ export async function runPipeline(jobId: string): Promise<void> {
     const debateMode = meta.debateMode ?? 'single';
     const selectedProviders = meta.selectedProviders;
 
+    trace?.update({ metadata: { jobId, debateMode, selectedProviders } });
+
     // Stage 1: Parse document
     await ingestDocx(jobId);
 
     // Stage 2: Run LLM personas (Round 1)
-    await runPersonas(jobId, selectedProviders);
+    await runPersonas(jobId, selectedProviders, traceId);
 
     // Stage 3-4: Debate rounds (only in debate mode)
     if (debateMode === 'debate') {
       logger.info('Debate mode enabled — running rounds 2 and 3', { jobId });
 
       // Round 2: Debate
-      await runDebate(jobId, selectedProviders);
+      await runDebate(jobId, selectedProviders, traceId);
 
       // Round 3: Final Verdict
-      await runVerdict(jobId, selectedProviders);
+      await runVerdict(jobId, selectedProviders, traceId);
     }
 
     // Stage 5: Consolidate findings
@@ -48,6 +58,8 @@ export async function runPipeline(jobId: string): Promise<void> {
 
     const durationMs = Date.now() - start;
     logger.info('Pipeline completed', { jobId, durationMs, debateMode });
+
+    trace?.update({ output: { status: 'completed', durationMs } });
   } catch (error) {
     const durationMs = Date.now() - start;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -67,5 +79,11 @@ export async function runPipeline(jobId: string): Promise<void> {
     }
 
     logger.error('Pipeline failed', { jobId, durationMs, errorCode: 'PIPELINE_ERROR' });
+
+    trace?.update({ output: { status: 'failed', errorMessage, durationMs } });
+  } finally {
+    if (langfuse) {
+      await langfuse.flushAsync();
+    }
   }
 }

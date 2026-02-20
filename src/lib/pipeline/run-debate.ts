@@ -15,7 +15,7 @@ export interface DebateResult {
 /**
  * Round 2 — Debate: each active provider sees ALL Round 1 findings and argues.
  */
-export async function runDebate(jobId: string, selectedProviders?: ProviderName[]): Promise<DebateResult> {
+export async function runDebate(jobId: string, selectedProviders?: ProviderName[], traceId?: string): Promise<DebateResult> {
   const meta = await getJob(jobId);
   if (!meta) throw new Error(`Job not found: ${jobId}`);
 
@@ -53,7 +53,7 @@ export async function runDebate(jobId: string, selectedProviders?: ProviderName[
   const results = await Promise.allSettled(
     adapters.map(async (adapter) => {
       const prompt = buildDebatePrompt(adapter.name, docAst, params, allRound1);
-      const response = await adapter.call(prompt, DebateRoundOutputSchema);
+      const response = await adapter.call(prompt, DebateRoundOutputSchema, { traceId, round: 'debate' });
 
       if (!response) {
         throw new Error(`${adapter.name}: debate round returned no valid response`);

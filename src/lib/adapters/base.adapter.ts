@@ -1,9 +1,10 @@
 import type { z } from 'zod';
 import axios, { type AxiosInstance } from 'axios';
-import type { LLMAdapter, LLMResponse } from './adapter.interface';
+import type { LLMAdapter, LLMCallOptions, LLMResponse } from './adapter.interface';
 import type { ProviderName } from '@/lib/config/env.config';
 import { loadConfig } from '@/lib/config/env.config';
 import { logger } from '@/lib/logger/logger';
+import { getLangfuse } from '@/lib/langfuse/langfuse-client';
 
 export abstract class BaseLLMAdapter implements LLMAdapter {
   abstract readonly name: ProviderName;
@@ -45,9 +46,19 @@ export abstract class BaseLLMAdapter implements LLMAdapter {
     return cleaned;
   }
 
-  async call<T>(prompt: string, schema: z.ZodType<T>): Promise<LLMResponse<T> | null> {
+  async call<T>(prompt: string, schema: z.ZodType<T>, options?: LLMCallOptions): Promise<LLMResponse<T> | null> {
     const maxRetries = loadConfig().LLM_MAX_RETRIES;
     let lastError: string | undefined;
+
+    const langfuse = getLangfuse();
+    const generation = langfuse && options?.traceId
+      ? langfuse.trace({ id: options.traceId }).generation({
+          name: this.name,
+          model: this.model,
+          input: prompt,
+          metadata: { round: options.round ?? 'round-1' },
+        })
+      : null;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const start = Date.now();
@@ -104,6 +115,12 @@ export abstract class BaseLLMAdapter implements LLMAdapter {
           durationMs,
         });
 
+        generation?.end({
+          output: content,
+          level: 'DEFAULT',
+          metadata: { attempt: attempt + 1 },
+        });
+
         return { data: result.data, provider: this.name, durationMs };
       } catch (error) {
         const durationMs = Date.now() - start;
@@ -111,6 +128,7 @@ export abstract class BaseLLMAdapter implements LLMAdapter {
         if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
           const msg = `${this.name}: timeout após ${Math.round(durationMs / 1000)}s`;
           logger.error('LLM call timed out', { provider: this.name, durationMs });
+          generation?.end({ level: 'ERROR', statusMessage: msg });
           throw new Error(msg);
         }
 
@@ -119,17 +137,20 @@ export abstract class BaseLLMAdapter implements LLMAdapter {
           const body = JSON.stringify(error.response?.data)?.slice(0, 200);
           const msg = `${this.name}: HTTP ${status} - ${body}`;
           logger.error('LLM call failed', { provider: this.name, errorCode: String(status), responseBody: body, durationMs });
+          generation?.end({ level: 'ERROR', statusMessage: msg });
           throw new Error(msg);
         }
 
         const msg = `${this.name}: ${error instanceof Error ? error.message : 'erro desconhecido'}`;
         logger.error('LLM call failed', { provider: this.name, errorMessage: msg, durationMs });
+        generation?.end({ level: 'ERROR', statusMessage: msg });
         throw new Error(msg);
       }
     }
 
     const msg = `${this.name}: falhou após ${maxRetries + 1} tentativas - ${lastError}`;
     logger.error('LLM exhausted all retries', { provider: this.name, maxRetries, lastError });
+    generation?.end({ level: 'ERROR', statusMessage: msg });
     throw new Error(msg);
   }
 }

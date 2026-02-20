@@ -33,6 +33,11 @@ const EnvSchema = z.object({
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(300000),
   LLM_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
 
+  // Langfuse Observability (opt-in)
+  LANGFUSE_SECRET_KEY: z.string().optional(),
+  LANGFUSE_PUBLIC_KEY: z.string().optional(),
+  LANGFUSE_BASE_URL: z.string().url().optional(),
+
   // Tenant
   DEFAULT_TENANT_ID: z.string().default('default'),
 });

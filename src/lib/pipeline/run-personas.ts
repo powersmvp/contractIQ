@@ -11,7 +11,7 @@ export interface PersonasResult {
   failed: { provider: string; reason: string }[];
 }
 
-export async function runPersonas(jobId: string, selectedProviders?: ProviderName[]): Promise<PersonasResult> {
+export async function runPersonas(jobId: string, selectedProviders?: ProviderName[], traceId?: string): Promise<PersonasResult> {
   const meta = await getJob(jobId);
   if (!meta) throw new Error(`Job not found: ${jobId}`);
 
@@ -43,7 +43,7 @@ export async function runPersonas(jobId: string, selectedProviders?: ProviderNam
   const results = await Promise.allSettled(
     adapters.map(async (adapter) => {
       const prompt = buildPrompt(adapter.name, docAst, params);
-      const response = await adapter.call(prompt, PersonaOutputSchema);
+      const response = await adapter.call(prompt, PersonaOutputSchema, { traceId, round: 'round-1' });
 
       if (!response) {
         throw new Error(`${adapter.name}: LLM não retornou resposta válida`);

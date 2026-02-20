@@ -15,7 +15,7 @@ export interface VerdictResult {
 /**
  * Round 3 — Final Verdict: each provider sees Round 1 + Round 2 and issues final judgment.
  */
-export async function runVerdict(jobId: string, selectedProviders?: ProviderName[]): Promise<VerdictResult> {
+export async function runVerdict(jobId: string, selectedProviders?: ProviderName[], traceId?: string): Promise<VerdictResult> {
   const meta = await getJob(jobId);
   if (!meta) throw new Error(`Job not found: ${jobId}`);
 
@@ -62,7 +62,7 @@ export async function runVerdict(jobId: string, selectedProviders?: ProviderName
   const results = await Promise.allSettled(
     adapters.map(async (adapter) => {
       const prompt = buildFinalVerdictPrompt(adapter.name, docAst, params, allRound1, allDebate);
-      const response = await adapter.call(prompt, FinalVerdictOutputSchema);
+      const response = await adapter.call(prompt, FinalVerdictOutputSchema, { traceId, round: 'verdict' });
 
       if (!response) {
         throw new Error(`${adapter.name}: verdict round returned no valid response`);
