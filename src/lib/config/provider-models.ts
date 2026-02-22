@@ -1,4 +1,4 @@
-import type { ProviderName } from './env.config';
+import { isNativeProvider, type NativeProviderName } from './env.config';
 import { getProviderModel } from './provider-keys';
 
 export interface ModelOption {
@@ -8,7 +8,7 @@ export interface ModelOption {
   isDefault: boolean;
 }
 
-export const PROVIDER_MODELS: Record<ProviderName, ModelOption[]> = {
+export const PROVIDER_MODELS: Record<NativeProviderName, ModelOption[]> = {
   gpt: [
     { id: 'gpt-4o-mini', label: 'GPT-4o Mini', tier: 'economy', isDefault: true },
     { id: 'gpt-4o', label: 'GPT-4o', tier: 'standard', isDefault: false },
@@ -34,10 +34,13 @@ export const PROVIDER_MODELS: Record<ProviderName, ModelOption[]> = {
   ],
 };
 
-export function getDefaultModel(provider: ProviderName): string {
+export function getDefaultModel(provider: NativeProviderName): string {
   return PROVIDER_MODELS[provider].find((m) => m.isDefault)!.id;
 }
 
-export async function getSelectedModel(provider: ProviderName): Promise<string> {
-  return (await getProviderModel(provider)) ?? getDefaultModel(provider);
+export async function getSelectedModel(provider: string): Promise<string> {
+  const stored = await getProviderModel(provider);
+  if (stored) return stored;
+  if (isNativeProvider(provider)) return getDefaultModel(provider);
+  return stored ?? '';
 }

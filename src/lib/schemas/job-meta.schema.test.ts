@@ -98,4 +98,13 @@ describe('JobMetaSchema', () => {
       contractType: 'rental',
     })).toThrow();
   });
+
+  it('accepts generic provider names in selectedProviders', () => {
+    const meta = {
+      ...validJobMeta(),
+      selectedProviders: ['gpt', 'groq', 'deepseek'],
+    };
+    const parsed = JobMetaSchema.parse(meta);
+    expect(parsed.selectedProviders).toEqual(['gpt', 'groq', 'deepseek']);
+  });
 });

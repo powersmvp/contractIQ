@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import axios from 'axios';
 import { getActiveProviders, getProviderConfig, resetConfigCache } from '@/lib/config/env.config';
-import type { ProviderName } from '@/lib/config/env.config';
+import type { NativeProviderName } from '@/lib/config/env.config';
 import { hydrateKeysToEnv } from '@/lib/config/provider-keys';
 
 const SimpleSchema = z.object({
   status: z.string(),
 }).passthrough();
 
-async function testProvider(name: ProviderName) {
+async function testProvider(name: NativeProviderName) {
   const { apiKey, baseUrl } = getProviderConfig(name);
   if (!apiKey) return { provider: name, success: false, error: 'Sem API key' };
 

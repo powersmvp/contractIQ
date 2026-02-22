@@ -108,6 +108,9 @@ export interface DbProviderConfigRow {
   provider_name: string;
   api_key: string;
   selected_model: string | null;
+  base_url: string | null;
+  display_name: string | null;
+  is_custom: boolean;
   created_at: string;
   updated_at: string;
 }

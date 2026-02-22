@@ -63,9 +63,14 @@ export function resetConfigCache(): void {
 }
 
 export const PROVIDERS = ['gpt', 'claude', 'gemini', 'mistral', 'llama'] as const;
-export type ProviderName = (typeof PROVIDERS)[number];
+export type NativeProviderName = (typeof PROVIDERS)[number];
+export type ProviderName = string;
 
-const PROVIDER_KEY_MAP: Record<ProviderName, keyof EnvConfig> = {
+export function isNativeProvider(name: string): name is NativeProviderName {
+  return (PROVIDERS as readonly string[]).includes(name);
+}
+
+const PROVIDER_KEY_MAP: Record<NativeProviderName, keyof EnvConfig> = {
   gpt: 'OPENAI_API_KEY',
   claude: 'ANTHROPIC_API_KEY',
   gemini: 'GOOGLE_AI_API_KEY',
@@ -73,7 +78,7 @@ const PROVIDER_KEY_MAP: Record<ProviderName, keyof EnvConfig> = {
   llama: 'LLAMA_API_KEY',
 };
 
-const PROVIDER_URL_MAP: Record<ProviderName, keyof EnvConfig> = {
+const PROVIDER_URL_MAP: Record<NativeProviderName, keyof EnvConfig> = {
   gpt: 'OPENAI_BASE_URL',
   claude: 'ANTHROPIC_BASE_URL',
   gemini: 'GOOGLE_AI_BASE_URL',
@@ -81,7 +86,7 @@ const PROVIDER_URL_MAP: Record<ProviderName, keyof EnvConfig> = {
   llama: 'LLAMA_BASE_URL',
 };
 
-export function getProviderConfig(provider: ProviderName): { apiKey: string | undefined; baseUrl: string } {
+export function getProviderConfig(provider: NativeProviderName): { apiKey: string | undefined; baseUrl: string } {
   const config = loadConfig();
   return {
     apiKey: config[PROVIDER_KEY_MAP[provider]] as string | undefined,
@@ -89,7 +94,7 @@ export function getProviderConfig(provider: ProviderName): { apiKey: string | un
   };
 }
 
-export function getActiveProviders(): ProviderName[] {
+export function getActiveProviders(): NativeProviderName[] {
   const config = loadConfig();
   return PROVIDERS.filter((p) => {
     const key = config[PROVIDER_KEY_MAP[p]];

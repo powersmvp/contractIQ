@@ -5,7 +5,7 @@ import { DocASTSchema, type DocAST } from '@/lib/schemas/docast.schema';
 import { getJob, updateJob, getJobFile, saveJobFile } from '@/lib/jobs/job-manager';
 import { buildFinalVerdictPrompt } from '@/lib/prompts/build-debate-prompt';
 import { logger } from '@/lib/logger/logger';
-import { PROVIDERS, type ProviderName } from '@/lib/config/env.config';
+import { PROVIDERS } from '@/lib/config/env.config';
 
 export interface VerdictResult {
   succeeded: { provider: string; output: FinalVerdictOutput }[];
@@ -15,7 +15,7 @@ export interface VerdictResult {
 /**
  * Round 3 — Final Verdict: each provider sees Round 1 + Round 2 and issues final judgment.
  */
-export async function runVerdict(jobId: string, selectedProviders?: ProviderName[], traceId?: string): Promise<VerdictResult> {
+export async function runVerdict(jobId: string, selectedProviders?: string[], traceId?: string): Promise<VerdictResult> {
   const meta = await getJob(jobId);
   if (!meta) throw new Error(`Job not found: ${jobId}`);
 
@@ -26,8 +26,9 @@ export async function runVerdict(jobId: string, selectedProviders?: ProviderName
   await updateJob(jobId, { currentStage: 'verdict' });
 
   // Load Round 1 outputs
+  const providers = meta.selectedProviders ?? [...PROVIDERS];
   const allRound1: { provider: string; output: PersonaOutput }[] = [];
-  for (const provider of PROVIDERS) {
+  for (const provider of providers) {
     const raw = await getJobFile(jobId, `personas/${provider}.json`);
     if (!raw) continue;
     try {
@@ -40,7 +41,7 @@ export async function runVerdict(jobId: string, selectedProviders?: ProviderName
 
   // Load Round 2 (debate) outputs
   const allDebate: { provider: string; output: DebateRoundOutput }[] = [];
-  for (const provider of PROVIDERS) {
+  for (const provider of providers) {
     const raw = await getJobFile(jobId, `personas/debate/${provider}.json`);
     if (!raw) continue;
     try {

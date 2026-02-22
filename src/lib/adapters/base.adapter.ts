@@ -1,13 +1,12 @@
 import type { z } from 'zod';
 import axios, { type AxiosInstance } from 'axios';
 import type { LLMAdapter, LLMCallOptions, LLMResponse } from './adapter.interface';
-import type { ProviderName } from '@/lib/config/env.config';
 import { loadConfig } from '@/lib/config/env.config';
 import { logger } from '@/lib/logger/logger';
 import { getLangfuse } from '@/lib/langfuse/langfuse-client';
 
 export abstract class BaseLLMAdapter implements LLMAdapter {
-  abstract readonly name: ProviderName;
+  abstract readonly name: string;
   protected client: AxiosInstance;
   protected apiKey: string;
 

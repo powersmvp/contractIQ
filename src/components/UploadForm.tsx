@@ -12,6 +12,7 @@ interface ProviderInfo {
   configured: boolean;
   selectedModel: string;
   availableModels: { id: string; label: string }[];
+  displayName?: string | null;
 }
 
 function Tooltip({ text }: { text: string }) {
@@ -505,7 +506,7 @@ export function UploadForm({ onJobCreated }: UploadFormProps) {
                         )}
                       </div>
                       <Bot className="h-3.5 w-3.5 shrink-0" />
-                      <span className="font-medium">{DISPLAY_NAMES[p.name] ?? p.name}</span>
+                      <span className="font-medium">{p.displayName ?? DISPLAY_NAMES[p.name] ?? p.name}</span>
                       <span className="ml-auto text-xs" style={{ color: 'var(--md-on-surface-variant)' }}>
                         {p.configured ? modelLabel : 'Não configurado'}
                       </span>
@@ -555,8 +556,11 @@ export function UploadForm({ onJobCreated }: UploadFormProps) {
             <p className="mb-4 text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>
               O contrato será enviado para APIs externas de inteligência artificial
               {debateMode
-                ? ` (${[...selectedProviders].map((p) => DISPLAY_NAMES[p] ?? p).join(', ')})`
-                : ' (OpenAI, Anthropic, Google, Mistral, Meta)'}
+                ? ` (${[...selectedProviders].map((p) => {
+                    const info = providers.find((pr) => pr.name === p);
+                    return info?.displayName ?? DISPLAY_NAMES[p] ?? p;
+                  }).join(', ')})`
+                : ''}
               {' '}para análise. Os dados são deletados automaticamente após 24 horas.
             </p>
             <div className="flex justify-end gap-2">

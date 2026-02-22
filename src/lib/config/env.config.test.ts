@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { loadConfig, resetConfigCache, getActiveProviders, getProviderConfig } from './env.config';
+import { loadConfig, resetConfigCache, getActiveProviders, getProviderConfig, isNativeProvider } from './env.config';
 
 describe('env.config', () => {
   const originalEnv = process.env;
@@ -101,6 +101,16 @@ describe('env.config', () => {
       const config = getProviderConfig('mistral');
       expect(config.apiKey).toBeUndefined();
       expect(config.baseUrl).toBe('https://api.mistral.ai/v1');
+    });
+  });
+
+  describe('isNativeProvider', () => {
+    it.each(['gpt', 'claude', 'gemini', 'mistral', 'llama'])('returns true for native "%s"', (name) => {
+      expect(isNativeProvider(name)).toBe(true);
+    });
+
+    it.each(['groq', 'deepseek', 'custom-llm', 'openrouter'])('returns false for custom "%s"', (name) => {
+      expect(isNativeProvider(name)).toBe(false);
     });
   });
 });

@@ -6,6 +6,7 @@ import { ClaudeAdapter } from './claude.adapter';
 import { GeminiAdapter } from './gemini.adapter';
 import { MistralAdapter } from './mistral.adapter';
 import { LlamaAdapter } from './llama.adapter';
+import { GenericAdapter } from './generic.adapter';
 import { getAdapters } from './index';
 import { resetConfigCache } from '@/lib/config/env.config';
 
@@ -29,6 +30,9 @@ vi.mock('@/lib/config/provider-keys', () => ({
   setProviderKey: vi.fn().mockResolvedValue(undefined),
   removeProviderKey: vi.fn().mockResolvedValue(undefined),
   setProviderModel: vi.fn().mockResolvedValue(undefined),
+  getCustomProviders: vi.fn().mockResolvedValue([]),
+  upsertCustomProvider: vi.fn().mockResolvedValue(undefined),
+  deleteCustomProvider: vi.fn().mockResolvedValue(undefined),
 }));
 
 const TestSchema = z.object({
@@ -206,6 +210,46 @@ describe('LlamaAdapter', () => {
     resetConfigCache();
     const adapter = new LlamaAdapter('key', 'https://api.together.xyz/v1', 'meta-llama/Llama-3.1-8B-Instruct-Turbo');
     expect(adapter.name).toBe('llama');
+  });
+});
+
+describe('GenericAdapter', () => {
+  let adapter: GenericAdapter;
+  let mockPost: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    resetConfigCache();
+    process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
+    process.env.SUPABASE_URL = 'https://test.supabase.co';
+    process.env.SUPABASE_SERVICE_KEY = 'test-service-key';
+    process.env.LLM_TIMEOUT_MS = '90000';
+    process.env.LLM_MAX_RETRIES = '2';
+    adapter = new GenericAdapter('groq', 'gsk-test', 'https://api.groq.com/openai/v1', 'llama-3.3-70b-versatile');
+    mockPost = (adapter as unknown as { client: { post: ReturnType<typeof vi.fn> } }).client.post;
+  });
+
+  it('has the custom provider name', () => {
+    expect(adapter.name).toBe('groq');
+  });
+
+  it('returns parsed data on successful call', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: {
+        choices: [{ message: { content: JSON.stringify({ result: 'ok', score: 99 }) } }],
+      },
+    });
+
+    const response = await adapter.call('Analyze this', TestSchema);
+    expect(response).not.toBeNull();
+    expect(response!.data).toEqual({ result: 'ok', score: 99 });
+    expect(response!.provider).toBe('groq');
+  });
+
+  it('uses OpenAI-compatible /chat/completions format', () => {
+    const req = adapter.buildRequest('test prompt');
+    expect(req.url).toBe('/chat/completions');
+    expect(req.headers['Authorization']).toBe('Bearer gsk-test');
+    expect((req.body as { model: string }).model).toBe('llama-3.3-70b-versatile');
   });
 });
 

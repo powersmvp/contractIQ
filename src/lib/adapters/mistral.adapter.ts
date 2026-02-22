@@ -1,8 +1,8 @@
 import { BaseLLMAdapter } from './base.adapter';
-import type { ProviderName } from '@/lib/config/env.config';
+import type { NativeProviderName } from '@/lib/config/env.config';
 
 export class MistralAdapter extends BaseLLMAdapter {
-  readonly name: ProviderName = 'mistral';
+  readonly name: NativeProviderName = 'mistral';
 
   buildRequest(prompt: string) {
     return {

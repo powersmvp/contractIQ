@@ -40,11 +40,12 @@ function pickHighestSeverity(severities: string[]): string {
 async function consolidateFromVerdict(
   jobId: string,
   verdictOutputs: { provider: string; output: FinalVerdictOutput }[],
+  providersList: string[],
 ): Promise<{ findings: Finding[]; generalSuggestions: string[]; providersUsed: string[] }> {
   // Count agrees/disagrees from debate round
   const debateStances: Record<string, { agrees: number; disagrees: number }> = {};
 
-  for (const provider of PROVIDERS) {
+  for (const provider of providersList) {
     const raw = await getJobFile(jobId, `personas/debate/${provider}.json`);
     if (!raw) continue;
     try {
@@ -231,6 +232,7 @@ export async function consolidate(jobId: string): Promise<ConsolidatedData> {
   await updateJob(jobId, { currentStage: 'consolidate' });
 
   const debateMode = meta.debateMode ?? 'single';
+  const providersList = meta.selectedProviders ?? [...PROVIDERS];
   let findings: Finding[];
   let generalSuggestions: string[];
   let providersUsed: string[];
@@ -238,7 +240,7 @@ export async function consolidate(jobId: string): Promise<ConsolidatedData> {
   if (debateMode === 'debate') {
     // Try verdict outputs first
     const verdictOutputs: { provider: string; output: FinalVerdictOutput }[] = [];
-    for (const provider of PROVIDERS) {
+    for (const provider of providersList) {
       const raw = await getJobFile(jobId, `personas/verdict/${provider}.json`);
       if (!raw) continue;
       try {
@@ -251,15 +253,15 @@ export async function consolidate(jobId: string): Promise<ConsolidatedData> {
 
     if (verdictOutputs.length >= 2) {
       logger.info('Consolidating from verdict outputs', { jobId, count: verdictOutputs.length });
-      ({ findings, generalSuggestions, providersUsed } = await consolidateFromVerdict(jobId, verdictOutputs));
+      ({ findings, generalSuggestions, providersUsed } = await consolidateFromVerdict(jobId, verdictOutputs, providersList));
     } else {
       // Fallback to Round 1 if verdict didn't produce enough results
       logger.warn('Insufficient verdict outputs, falling back to Round 1', { jobId, verdictCount: verdictOutputs.length });
-      const personaOutputs = await loadPersonaOutputs(jobId);
+      const personaOutputs = await loadPersonaOutputs(jobId, providersList);
       ({ findings, generalSuggestions, providersUsed } = consolidateFromPersonas(personaOutputs));
     }
   } else {
-    const personaOutputs = await loadPersonaOutputs(jobId);
+    const personaOutputs = await loadPersonaOutputs(jobId, providersList);
     ({ findings, generalSuggestions, providersUsed } = consolidateFromPersonas(personaOutputs));
   }
 
@@ -307,9 +309,9 @@ export async function consolidate(jobId: string): Promise<ConsolidatedData> {
   return consolidatedData;
 }
 
-async function loadPersonaOutputs(jobId: string): Promise<{ provider: string; output: PersonaOutput }[]> {
+async function loadPersonaOutputs(jobId: string, providersList: string[]): Promise<{ provider: string; output: PersonaOutput }[]> {
   const outputs: { provider: string; output: PersonaOutput }[] = [];
-  for (const provider of PROVIDERS) {
+  for (const provider of providersList) {
     const raw = await getJobFile(jobId, `personas/${provider}.json`);
     if (!raw) continue;
     try {

@@ -1,8 +1,8 @@
 import { BaseLLMAdapter } from './base.adapter';
-import type { ProviderName } from '@/lib/config/env.config';
+import type { NativeProviderName } from '@/lib/config/env.config';
 
 export class GeminiAdapter extends BaseLLMAdapter {
-  readonly name: ProviderName = 'gemini';
+  readonly name: NativeProviderName = 'gemini';
 
   buildRequest(prompt: string) {
     return {

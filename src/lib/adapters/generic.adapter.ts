@@ -1,8 +1,12 @@
 import { BaseLLMAdapter } from './base.adapter';
-import type { NativeProviderName } from '@/lib/config/env.config';
 
-export class GptAdapter extends BaseLLMAdapter {
-  readonly name: NativeProviderName = 'gpt';
+export class GenericAdapter extends BaseLLMAdapter {
+  readonly name: string;
+
+  constructor(name: string, apiKey: string, baseUrl: string, model: string) {
+    super(apiKey, baseUrl, model);
+    this.name = name;
+  }
 
   buildRequest(prompt: string) {
     return {

@@ -1,5 +1,4 @@
 import type { DocAST } from '@/lib/schemas/docast.schema';
-import type { ProviderName } from '@/lib/config/env.config';
 import type { PersonaOutput } from '@/lib/schemas/persona-output.schema';
 import type { DebateRoundOutput } from '@/lib/schemas/debate.schema';
 
@@ -13,7 +12,7 @@ interface PromptParams {
  * Round 2 — Debate: each provider sees ALL Round 1 findings and argues.
  */
 export function buildDebatePrompt(
-  provider: ProviderName,
+  provider: string,
   docAst: DocAST,
   params: PromptParams,
   allRound1: { provider: string; output: PersonaOutput }[],
@@ -97,7 +96,7 @@ Retorne APENAS o objeto JSON. Sem markdown, sem explicações, sem blocos de có
  * final findings with confidence scores.
  */
 export function buildFinalVerdictPrompt(
-  provider: ProviderName,
+  provider: string,
   docAst: DocAST,
   params: PromptParams,
   allRound1: { provider: string; output: PersonaOutput }[],

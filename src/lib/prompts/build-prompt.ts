@@ -2,8 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import YAML from 'yaml';
 import type { DocAST } from '@/lib/schemas/docast.schema';
-import type { ProviderName } from '@/lib/config/env.config';
-
 let cachedPlaybook: string | null = null;
 
 function getPlaybook(): string {
@@ -21,7 +19,7 @@ interface PromptParams {
   jurisdiction: string;
 }
 
-export function buildPrompt(provider: ProviderName, docAst: DocAST, params: PromptParams): string {
+export function buildPrompt(provider: string, docAst: DocAST, params: PromptParams): string {
   const playbook = getPlaybook();
 
   const docAstJson = JSON.stringify({

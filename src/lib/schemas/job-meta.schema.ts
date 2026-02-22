@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { PROVIDERS } from '@/lib/config/env.config';
 
-export const ProviderNameSchema = z.enum(PROVIDERS);
+export const NativeProviderNameSchema = z.enum(PROVIDERS);
+
+export const ProviderNameSchema = z.string().min(1);
 
 export const JobStatusSchema = z.enum(['created', 'processing', 'analyzed', 'completed', 'failed', 'expired']);
 

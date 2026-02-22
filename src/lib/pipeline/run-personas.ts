@@ -4,14 +4,12 @@ import { DocASTSchema, type DocAST } from '@/lib/schemas/docast.schema';
 import { getJob, updateJob, getJobFile, saveJobFile } from '@/lib/jobs/job-manager';
 import { buildPrompt } from '@/lib/prompts/build-prompt';
 import { logger } from '@/lib/logger/logger';
-import type { ProviderName } from '@/lib/config/env.config';
-
 export interface PersonasResult {
   succeeded: { provider: string; output: PersonaOutput }[];
   failed: { provider: string; reason: string }[];
 }
 
-export async function runPersonas(jobId: string, selectedProviders?: ProviderName[], traceId?: string): Promise<PersonasResult> {
+export async function runPersonas(jobId: string, selectedProviders?: string[], traceId?: string): Promise<PersonasResult> {
   const meta = await getJob(jobId);
   if (!meta) throw new Error(`Job not found: ${jobId}`);
 

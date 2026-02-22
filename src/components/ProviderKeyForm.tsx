@@ -42,7 +42,11 @@ export function ProviderKeyForm({ providerName, maskedKey, selectedModel, availa
       const res = await fetch('/api/config/providers', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: providerName, apiKey: apiKey.trim(), validate }),
+        body: JSON.stringify({
+          provider: providerName,
+          apiKey: apiKey.trim(),
+          validate,
+        }),
       });
 
       const data = await res.json();

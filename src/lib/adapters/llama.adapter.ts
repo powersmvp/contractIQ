@@ -1,8 +1,8 @@
 import { BaseLLMAdapter } from './base.adapter';
-import type { ProviderName } from '@/lib/config/env.config';
+import type { NativeProviderName } from '@/lib/config/env.config';
 
 export class LlamaAdapter extends BaseLLMAdapter {
-  readonly name: ProviderName = 'llama';
+  readonly name: NativeProviderName = 'llama';
 
   buildRequest(prompt: string) {
     return {

@@ -5,7 +5,7 @@ import { DocASTSchema, type DocAST } from '@/lib/schemas/docast.schema';
 import { getJob, updateJob, getJobFile, saveJobFile } from '@/lib/jobs/job-manager';
 import { buildDebatePrompt } from '@/lib/prompts/build-debate-prompt';
 import { logger } from '@/lib/logger/logger';
-import { PROVIDERS, type ProviderName } from '@/lib/config/env.config';
+import { PROVIDERS } from '@/lib/config/env.config';
 
 export interface DebateResult {
   succeeded: { provider: string; output: DebateRoundOutput }[];
@@ -15,7 +15,7 @@ export interface DebateResult {
 /**
  * Round 2 — Debate: each active provider sees ALL Round 1 findings and argues.
  */
-export async function runDebate(jobId: string, selectedProviders?: ProviderName[], traceId?: string): Promise<DebateResult> {
+export async function runDebate(jobId: string, selectedProviders?: string[], traceId?: string): Promise<DebateResult> {
   const meta = await getJob(jobId);
   if (!meta) throw new Error(`Job not found: ${jobId}`);
 
@@ -26,8 +26,9 @@ export async function runDebate(jobId: string, selectedProviders?: ProviderName[
   await updateJob(jobId, { currentStage: 'debate' });
 
   // Load all Round 1 outputs
+  const providers = meta.selectedProviders ?? [...PROVIDERS];
   const allRound1: { provider: string; output: PersonaOutput }[] = [];
-  for (const provider of PROVIDERS) {
+  for (const provider of providers) {
     const raw = await getJobFile(jobId, `personas/${provider}.json`);
     if (!raw) continue;
     try {

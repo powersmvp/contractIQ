@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { PROVIDERS, getProviderConfig, resetConfigCache } from '@/lib/config/env.config';
-import { setProviderKey, removeProviderKey, setProviderModel, hydrateKeysToEnv } from '@/lib/config/provider-keys';
+import { PROVIDERS, getProviderConfig, resetConfigCache, type NativeProviderName } from '@/lib/config/env.config';
+import { setProviderKey, removeProviderKey, setProviderModel, hydrateKeysToEnv, getCustomProviders } from '@/lib/config/provider-keys';
 import { getAdapter } from '@/lib/adapters';
 import { PROVIDER_MODELS, getSelectedModel } from '@/lib/config/provider-models';
 import { logger } from '@/lib/logger/logger';
@@ -13,7 +13,7 @@ export async function GET() {
     try { await hydrateKeysToEnv(); } catch { /* Supabase may be unreachable on first call */ }
     resetConfigCache();
 
-    const providers = await Promise.all(
+    const nativeProviders = await Promise.all(
       PROVIDERS.map(async (name) => {
         const { apiKey } = getProviderConfig(name);
         const hasKey = typeof apiKey === 'string' && apiKey.length > 0;
@@ -24,9 +24,28 @@ export async function GET() {
           maskedKey: hasKey ? `${apiKey.slice(0, 4)}..${apiKey.slice(-4)}` : null,
           selectedModel: await getSelectedModel(name),
           availableModels: PROVIDER_MODELS[name],
+          isCustom: false,
+          displayName: null as string | null,
+          baseUrl: null as string | null,
         };
       }),
     );
+
+    // Load custom providers
+    const customs = await getCustomProviders();
+    const customProviders = customs.map((c) => ({
+      name: c.provider_name,
+      status: 'active' as const,
+      configured: true,
+      maskedKey: `${c.api_key.slice(0, 4)}..${c.api_key.slice(-4)}`,
+      selectedModel: c.selected_model ?? '',
+      availableModels: [] as { id: string; label: string; tier: string; isDefault: boolean }[],
+      isCustom: true,
+      displayName: c.display_name,
+      baseUrl: c.base_url,
+    }));
+
+    const providers = [...nativeProviders, ...customProviders];
 
     return NextResponse.json({ data: { providers } });
   } catch (err) {
@@ -135,8 +154,7 @@ export async function PATCH(request: NextRequest) {
 
   const { provider, model } = parsed.data;
 
-  // Validate model exists for this provider
-  const validModels = PROVIDER_MODELS[provider].map((m) => m.id);
+  const validModels = PROVIDER_MODELS[provider as NativeProviderName].map((m) => m.id);
   if (!validModels.includes(model)) {
     return NextResponse.json(
       { error: { code: 'INVALID_MODEL', message: `Modelo inválido para ${provider}. Válidos: ${validModels.join(', ')}` } },
